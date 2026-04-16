@@ -6,8 +6,9 @@ from fetcher import fetch_all, fetch_full_text
 from scorer import select_best
 from translator import translate, extract_chinese_title
 from formatter import format_article
-from wechat import create_draft
+from wechat import upload_image, create_draft
 from notifier import notify_review_ready, send_pushplus, send_bark
+from image_gen import generate_cover
 
 DRY_RUN = os.getenv("DRY_RUN", "").lower() in ("1", "true", "yes")
 
@@ -49,8 +50,19 @@ def run():
     print("[pipeline] Formatting...")
     html, summary = format_article(translated, chinese_title)
 
+    # Auto-generate + upload cover image (optional)
+    cover_media_id = ""
+    cover_path = generate_cover(chinese_title, summary)
+    if cover_path:
+        print("[pipeline] Uploading cover image to WeChat...")
+        try:
+            cover_media_id = upload_image(cover_path)
+            print(f"[pipeline] Cover media_id: {cover_media_id}")
+        except Exception as e:
+            print(f"[pipeline] Cover upload failed (using static): {e}")
+
     print("[pipeline] Creating WeChat draft...")
-    draft_id = create_draft(chinese_title, html, source_url=best["url"])
+    draft_id = create_draft(chinese_title, html, source_url=best["url"], cover_media_id=cover_media_id)
     print(f"[pipeline] Draft created: {draft_id}")
 
     mark_published(best["url"], chinese_title)
