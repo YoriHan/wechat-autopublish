@@ -27,6 +27,8 @@ SOURCES = [
     {"name": "Anthropic Scrape", "url": "https://www.anthropic.com/news", "tier": 1, "scrape": True},
 ]
 
+TWITTER_ACCOUNTS = ["AnthropicAI", "sama", "karpathy", "ylecun", "demishassabis"]
+
 RELEVANCE_KEYWORDS = [
     "claude", "llm", "gpt", "gemini", "ai agent", "model", "reasoning",
     "anthropic", "openai", "deepmind", "reinforcement", "training",
