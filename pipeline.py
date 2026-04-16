@@ -34,6 +34,12 @@ def run():
     print(f"[pipeline] Selected: {best['url']}")
     full_text = fetch_full_text(best["url"])
 
+    if DRY_RUN:
+        print("[pipeline] DRY RUN — skipping translation, formatting, and submission")
+        print(f"[pipeline] Would have translated: {best['title']}")
+        print(f"[pipeline] Score: {best['score']}")
+        return
+
     print("[pipeline] Translating...")
     translated = translate(best, full_text)
 
