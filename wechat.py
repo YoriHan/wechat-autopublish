@@ -1,64 +1,40 @@
-import httpx, time, sqlite3
+"""WeChat API client — powered by wechatpy SDK (auto token management)."""
+import httpx
+from pathlib import Path
+from wechatpy import WeChatClient
 from config import WECHAT_APP_ID, WECHAT_APP_SECRET, WECHAT_COVER_MEDIA_ID, BASE_DIR
 
-TOKEN_DB = str(BASE_DIR / "wechat_token.db")
+# wechatpy handles token fetch + refresh automatically (60s buffer before expiry)
+_client: WeChatClient | None = None
 
-def _init_token_db():
-    with sqlite3.connect(TOKEN_DB) as conn:
-        conn.execute(
-            "CREATE TABLE IF NOT EXISTS token (access_token TEXT, expires_at REAL)"
-        )
+def get_client() -> WeChatClient:
+    global _client
+    if _client is None:
+        _client = WeChatClient(WECHAT_APP_ID, WECHAT_APP_SECRET)
+    return _client
 
-def get_access_token() -> str:
-    _init_token_db()
-    with sqlite3.connect(TOKEN_DB) as conn:
-        row = conn.execute("SELECT access_token, expires_at FROM token").fetchone()
-    if row and row[1] > time.time() + 600:
-        return row[0]
-    resp = httpx.get(
-        "https://api.weixin.qq.com/cgi-bin/token",
-        params={
-            "grant_type": "client_credential",
-            "appid": WECHAT_APP_ID,
-            "secret": WECHAT_APP_SECRET,
-        },
-        timeout=10
-    )
-    try:
-        data = resp.json()
-    except Exception:
-        raise RuntimeError(f"WeChat token API returned non-JSON (status {resp.status_code}): {resp.text[:200]}")
-    if "errcode" in data or "access_token" not in data:
-        raise RuntimeError(
-            f"WeChat token error: errcode={data.get('errcode')} "
-            f"errmsg={data.get('errmsg', 'unknown')}"
-        )
-    token = data["access_token"]
-    expires_at = time.time() + data["expires_in"]
-    with sqlite3.connect(TOKEN_DB) as conn:
-        conn.execute("DELETE FROM token")
-        conn.execute("INSERT INTO token VALUES (?,?)", (token, expires_at))
-    return token
+def upload_image(image_path: str) -> str:
+    """Upload a local image file to WeChat permanent materials. Returns media_id."""
+    client = get_client()
+    with open(image_path, "rb") as f:
+        result = client.media.upload("image", f)
+    return result["media_id"]
 
-def create_draft(chinese_title: str, html_content: str, source_url: str = "") -> str:
-    token = get_access_token()
-    payload = {
-        "articles": [{
-            "title": chinese_title,
-            "author": "AI译介",
-            "content": html_content,
-            "content_source_url": source_url,
-            "thumb_media_id": WECHAT_COVER_MEDIA_ID,
-            "need_open_comment": 0,
-        }]
-    }
-    resp = httpx.post(
-        "https://api.weixin.qq.com/cgi-bin/draft/add",
-        params={"access_token": token},
-        json=payload,
-        timeout=15
-    )
-    data = resp.json()
-    if "media_id" not in data:
-        raise RuntimeError(f"WeChat draft API error: errcode={data.get('errcode')} errmsg={data.get('errmsg', data)}")
-    return data["media_id"]
+def create_draft(chinese_title: str, html_content: str,
+                 source_url: str = "", cover_media_id: str = "") -> str:
+    """Create a WeChat draft (草稿箱). Returns draft media_id."""
+    client = get_client()
+    thumb_id = cover_media_id or WECHAT_COVER_MEDIA_ID
+    result = client.draft.add([{
+        "title": chinese_title,
+        "author": "AI译介",
+        "digest": "",          # pipeline.py fills this in
+        "content": html_content,
+        "content_source_url": source_url,
+        "thumb_media_id": thumb_id,
+        "need_open_comment": 0,
+        "only_fans_can_comment": 0,
+    }])
+    if "media_id" not in result:
+        raise RuntimeError(f"WeChat draft API error: {result}")
+    return result["media_id"]
