@@ -15,6 +15,8 @@ except KeyError as e:
     sys.exit(1)
 BARK_KEY = os.environ.get("BARK_KEY", "")
 PUSHPLUS_TOKEN = os.environ.get("PUSHPLUS_TOKEN", "")
+USE_MD2WECHAT = os.environ.get("USE_MD2WECHAT", "false").lower() == "true"
+WECHAT_THEME = os.environ.get("WECHAT_THEME", "autumn-warm")
 
 BASE_DIR = Path(__file__).parent
 

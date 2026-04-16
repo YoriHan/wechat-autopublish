@@ -5,12 +5,13 @@ from db import init_db, mark_published
 from fetcher import fetch_all, fetch_full_text
 from scorer import select_best
 from translator import translate, extract_chinese_title
-from formatter import format_article
+from formatter import format_article, format_article_md2wechat
 from wechat import upload_image, create_draft
 from notifier import notify_review_ready, send_pushplus, send_bark
 from image_gen import generate_cover
 
 DRY_RUN = os.getenv("DRY_RUN", "").lower() in ("1", "true", "yes")
+from config import USE_MD2WECHAT, WECHAT_THEME
 
 def run():
     if DRY_RUN:
@@ -48,7 +49,11 @@ def run():
     print(f"[pipeline] Chinese title: {chinese_title}")
 
     print("[pipeline] Formatting...")
-    html, summary = format_article(translated, chinese_title)
+    if USE_MD2WECHAT:
+        print(f"[pipeline] Using md2wechat theme: {WECHAT_THEME}")
+        html, summary = format_article_md2wechat(translated, chinese_title, WECHAT_THEME)
+    else:
+        html, summary = format_article(translated, chinese_title)
 
     # Auto-generate + upload cover image (optional)
     cover_media_id = ""

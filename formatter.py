@@ -1,6 +1,73 @@
-import mistune, re
+import mistune, re, subprocess, json, tempfile, os
+import anthropic
+from pathlib import Path
+from config import ANTHROPIC_API_KEY
 
 # mistune PINNED to 2.0.5 — do NOT upgrade. 3.x removed mistune.html()
+
+_claude = None
+
+
+def _get_claude():
+    global _claude
+    if _claude is None:
+        _claude = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+    return _claude
+
+
+# ---------- md2wechat AI mode (enhanced styling) ----------
+
+def _md2wechat_available() -> bool:
+    return subprocess.run(["which", "md2wechat"], capture_output=True).returncode == 0
+
+
+def _md2wechat_prompt(markdown: str, theme: str) -> str | None:
+    """Call md2wechat CLI to get the theme prompt for a Markdown string."""
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".md", delete=False, encoding="utf-8") as f:
+        f.write(markdown)
+        tmp = f.name
+    try:
+        result = subprocess.run(
+            ["md2wechat", "convert", tmp, "--mode", "ai", "--theme", theme, "--json"],
+            capture_output=True, text=True, timeout=10
+        )
+        data = json.loads(result.stdout)
+        return data.get("data", {}).get("prompt")
+    except Exception:
+        return None
+    finally:
+        os.unlink(tmp)
+
+
+def format_article_md2wechat(translated_md: str, chinese_title: str, theme: str = "autumn-warm") -> tuple[str, str]:
+    """Format using md2wechat AI theme + Claude. Falls back to mistune on any error."""
+    prompt = _md2wechat_prompt(translated_md, theme)
+    if not prompt:
+        return format_article(translated_md, chinese_title)
+
+    try:
+        msg = _get_claude().messages.create(
+            model="claude-sonnet-4-6",
+            max_tokens=4096,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        html = msg.content[0].text
+        # Strip markdown code fences if Claude wraps the HTML
+        if "```html" in html:
+            html = html.split("```html")[1].split("```")[0].strip()
+        elif "```" in html:
+            html = html.split("```")[1].split("```")[0].strip()
+    except Exception:
+        return format_article(translated_md, chinese_title)
+
+    clean = re.sub(r'<[^>]+>', '', translated_md)
+    clean = re.sub(r'[#*`>_\[\]]+', '', clean)
+    clean = re.sub(r'\s+', ' ', clean).strip()
+    summary = clean[:200] + "..."
+    return html, summary
+
+
+# ---------- Default mistune-based formatter ----------
 
 def md_to_wechat_html(md_text: str, chinese_title: str) -> str:
     processed = re.sub(
@@ -41,6 +108,7 @@ def md_to_wechat_html(md_text: str, chinese_title: str) -> str:
         'max-width:677px;margin:0 auto;padding:0 16px;'
     )
     return f'<section style="{container_style}">{title_html}{html}{footer_html}</section>'
+
 
 def format_article(translated_md: str, chinese_title: str) -> tuple[str, str]:
     html = md_to_wechat_html(translated_md, chinese_title)
