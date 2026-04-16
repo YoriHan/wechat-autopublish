@@ -14,14 +14,14 @@ SYSTEM_PROMPT = (
 
 def _build_prompt(source: str, author: str, url: str, content: str) -> str:
     return (
-        "请将以下文章翻译为适合微信公众号的中文，按如下格式输出：\n\n"
-        "第一行必须是：# [中文标题]\n\n"
-        "> 📌 原文来源：" + source + " | 作者：" + author + " | 原文链接：" + url + "\n\n"
-        "**编者按：** [用1-2句话说明此文的价值，为什么值得读]\n\n"
-        "（正文翻译，使用 ## 作为二级标题，**加粗**重点，保持段落清晰）\n\n"
-        "---\n"
-        "*本文由 AI 辅助翻译自英文原文，如有偏差以原文为准。*\n\n"
-        "原文内容：\n" + content
+        f"请将以下文章翻译为适合微信公众号的中文，按如下格式输出：\n\n"
+        f"第一行必须是：# [中文标题]\n\n"
+        f"> 📌 原文来源：{source} | 作者：{author} | 原文链接：{url}\n\n"
+        f"**编者按：** [用1-2句话说明此文的价值，为什么值得读]\n\n"
+        f"（正文翻译，使用 ## 作为二级标题，**加粗**重点，保持段落清晰）\n\n"
+        f"---\n"
+        f"*本文由 AI 辅助翻译自英文原文，如有偏差以原文为准。*\n\n"
+        f"原文内容：\n{content}"
     )
 
 def translate(article: dict, full_text: str) -> str:
@@ -40,12 +40,11 @@ def translate(article: dict, full_text: str) -> str:
     return msg.content[0].text
 
 def extract_chinese_title(translated_md: str) -> str:
-    for line in translated_md.splitlines():
-        line = line.strip()
+    lines = [l.strip() for l in translated_md.splitlines()]
+    for line in lines:
         if line.startswith("# "):
             return line[2:].strip()
-    for line in translated_md.splitlines():
-        line = line.strip()
+    for line in lines:
         if line and not line.startswith(">") and not line.startswith("*"):
             return line[:60]
     return "今日AI译介"

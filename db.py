@@ -1,4 +1,5 @@
 import sqlite3, hashlib
+from datetime import datetime
 from pathlib import Path
 from config import BASE_DIR
 
@@ -24,7 +25,6 @@ def is_duplicate(url: str) -> bool:
 
 def mark_published(url: str, title: str):
     h = hashlib.md5(url.encode()).hexdigest()
-    from datetime import datetime
     with sqlite3.connect(DB_PATH) as conn:
         conn.execute(
             "INSERT OR IGNORE INTO articles VALUES (?,?,?,?)",

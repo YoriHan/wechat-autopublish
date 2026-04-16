@@ -28,8 +28,8 @@ def md_to_wechat_html(md_text: str, chinese_title: str) -> str:
         html = html.replace(old, new)
 
     title_html = (
-        '<h1 style="font-size:22px;font-weight:bold;color:#1a1a1a;'
-        'margin:20px 0 8px;line-height:1.4;">' + chinese_title + '</h1>'
+        f'<h1 style="font-size:22px;font-weight:bold;color:#1a1a1a;'
+        f'margin:20px 0 8px;line-height:1.4;">{chinese_title}</h1>'
     )
     footer_html = (
         '<hr style="border:none;border-top:1px solid #eee;margin:32px 0;">'
@@ -40,11 +40,7 @@ def md_to_wechat_html(md_text: str, chinese_title: str) -> str:
         'font-family:-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif;'
         'max-width:677px;margin:0 auto;padding:0 16px;'
     )
-    return (
-        '<section style="' + container_style + '">'
-        + title_html + html + footer_html
-        + '</section>'
-    )
+    return f'<section style="{container_style}">{title_html}{html}{footer_html}</section>'
 
 def format_article(translated_md: str, chinese_title: str) -> tuple[str, str]:
     html = md_to_wechat_html(translated_md, chinese_title)

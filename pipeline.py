@@ -49,12 +49,6 @@ def run():
     print("[pipeline] Formatting...")
     html, summary = format_article(translated, chinese_title)
 
-    if DRY_RUN:
-        print("[pipeline] DRY RUN — skipping WeChat draft creation")
-        print(f"[pipeline] Would publish: {chinese_title}")
-        print(f"[pipeline] Summary preview: {summary[:150]}")
-        return
-
     print("[pipeline] Creating WeChat draft...")
     draft_id = create_draft(chinese_title, html, source_url=best["url"])
     print(f"[pipeline] Draft created: {draft_id}")

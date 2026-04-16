@@ -1,5 +1,4 @@
 import httpx, time, sqlite3
-from pathlib import Path
 from config import WECHAT_APP_ID, WECHAT_APP_SECRET, WECHAT_COVER_MEDIA_ID, BASE_DIR
 
 TOKEN_DB = str(BASE_DIR / "wechat_token.db")

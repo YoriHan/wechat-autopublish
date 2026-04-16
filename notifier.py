@@ -36,14 +36,15 @@ def send_pushplus(title: str, content: str) -> bool:
         return False
 
 def notify_review_ready(chinese_title: str, summary: str) -> bool:
+    notification_title = f"公众号草稿 | {chinese_title[:20]}"
     body = summary[:100] + " — 点击前往草稿箱发布"
-    sent = send_bark("公众号草稿 | " + chinese_title[:20], body)
+    sent = send_bark(notification_title, body)
     if not sent:
         content = (
-            "<h3>📰 今日公众号文章已就绪</h3>"
-            "<p><strong>" + chinese_title + "</strong></p>"
-            "<p>" + summary + "</p>"
-            '<p>✅ 请前往 <a href="https://mp.weixin.qq.com">公众号后台</a> 草稿箱发布</p>'
+            f"<h3>📰 今日公众号文章已就绪</h3>"
+            f"<p><strong>{chinese_title}</strong></p>"
+            f"<p>{summary}</p>"
+            f'<p>✅ 请前往 <a href="https://mp.weixin.qq.com">公众号后台</a> 草稿箱发布</p>'
         )
-        sent = send_pushplus("公众号草稿 | " + chinese_title[:20], content)
+        sent = send_pushplus(notification_title, content)
     return sent
