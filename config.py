@@ -1,13 +1,18 @@
 from dotenv import load_dotenv
 from pathlib import Path
 import os
+import sys
 
 load_dotenv(Path(__file__).parent / ".env")
 
-ANTHROPIC_API_KEY = os.environ["ANTHROPIC_API_KEY"]
-WECHAT_APP_ID = os.environ["WECHAT_APP_ID"]
-WECHAT_APP_SECRET = os.environ["WECHAT_APP_SECRET"]
-WECHAT_COVER_MEDIA_ID = os.environ["WECHAT_COVER_MEDIA_ID"]
+try:
+    ANTHROPIC_API_KEY = os.environ["ANTHROPIC_API_KEY"]
+    WECHAT_APP_ID = os.environ["WECHAT_APP_ID"]
+    WECHAT_APP_SECRET = os.environ["WECHAT_APP_SECRET"]
+    WECHAT_COVER_MEDIA_ID = os.environ["WECHAT_COVER_MEDIA_ID"]
+except KeyError as e:
+    print(f"[config] Missing required env var: {e}. Check your .env file.", file=sys.stderr)
+    sys.exit(1)
 BARK_KEY = os.environ.get("BARK_KEY", "")
 PUSHPLUS_TOKEN = os.environ.get("PUSHPLUS_TOKEN", "")
 

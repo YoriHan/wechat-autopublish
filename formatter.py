@@ -10,7 +10,7 @@ def md_to_wechat_html(md_text: str, chinese_title: str) -> str:
         md_text,
         flags=re.MULTILINE
     )
-    processed = re.sub(r'^# .+\n?', '', processed, count=1, flags=re.MULTILINE)
+    processed = re.sub(r'^# .+\r?\n?', '', processed, count=1, flags=re.MULTILINE)
 
     html = mistune.html(processed)
 
@@ -49,6 +49,7 @@ def md_to_wechat_html(md_text: str, chinese_title: str) -> str:
 def format_article(translated_md: str, chinese_title: str) -> tuple[str, str]:
     html = md_to_wechat_html(translated_md, chinese_title)
     clean = re.sub(r'<[^>]+>', '', translated_md)
+    clean = re.sub(r'[#*`>_\[\]]+', '', clean)
     clean = re.sub(r'\s+', ' ', clean).strip()
     summary = clean[:200] + "..."
     return html, summary

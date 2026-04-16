@@ -25,7 +25,10 @@ def get_access_token() -> str:
         },
         timeout=10
     )
-    data = resp.json()
+    try:
+        data = resp.json()
+    except Exception:
+        raise RuntimeError(f"WeChat token API returned non-JSON (status {resp.status_code}): {resp.text[:200]}")
     if "errcode" in data or "access_token" not in data:
         raise RuntimeError(
             f"WeChat token error: errcode={data.get('errcode')} "
@@ -58,5 +61,5 @@ def create_draft(chinese_title: str, html_content: str, source_url: str = "") ->
     )
     data = resp.json()
     if "media_id" not in data:
-        raise RuntimeError(f"WeChat draft API error: {data}")
+        raise RuntimeError(f"WeChat draft API error: errcode={data.get('errcode')} errmsg={data.get('errmsg', data)}")
     return data["media_id"]
