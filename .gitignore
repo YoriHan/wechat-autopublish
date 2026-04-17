@@ -5,3 +5,6 @@
 .venv/
 __pycache__/
 *.pyc
+.twitter_session/
+chrome-debug.log
+.ship/
