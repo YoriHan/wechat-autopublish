@@ -1,46 +1,91 @@
 name: Daily WeChat Publish
+
 on:
+  # Stage 1 — 08:00 CST (00:00 UTC): fetch & shortlist Top 5
+  # Stage 2 — 12:00 CST (04:00 UTC): translate & publish selected article
   schedule:
-    - cron: '0 0 * * *'
+    - cron: '0 0 * * *'   # Stage 1: fetch (08:00 CST)
+    - cron: '0 4 * * *'   # Stage 2: publish (12:00 CST)
   workflow_dispatch:
     inputs:
       url:
         description: 'Tweet or article URL to process manually (leave blank for normal daily run)'
         required: false
         type: string
+      stage:
+        description: 'Pipeline stage to run: fetch | publish | (blank = single-shot)'
+        required: false
+        type: string
+
+env:
+  DEEPSEEK_API_KEY:              ${{ secrets.DEEPSEEK_API_KEY }}
+  NOTION_TOKEN:                  ${{ secrets.NOTION_TOKEN }}
+  NOTION_DATABASE_ID:            ${{ secrets.NOTION_DATABASE_ID }}
+  NOTION_CANDIDATES_DATABASE_ID: ${{ secrets.NOTION_CANDIDATES_DATABASE_ID }}
+  WECHAT_APP_ID:                 ${{ secrets.WECHAT_APP_ID }}
+  WECHAT_APP_SECRET:             ${{ secrets.WECHAT_APP_SECRET }}
+  WECHAT_COVER_MEDIA_ID:         ${{ secrets.WECHAT_COVER_MEDIA_ID }}
+  BARK_KEY:                      ${{ secrets.BARK_KEY }}
+  PUSHPLUS_TOKEN:                ${{ secrets.PUSHPLUS_TOKEN }}
+  GITHUB_TOKEN:                  ${{ secrets.GITHUB_TOKEN }}
+  RSSHUB_BASE_URL:               ${{ secrets.RSSHUB_BASE_URL }}
+  MANUAL_URL:                    ${{ github.event.inputs.url }}
+
 jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+
       - name: Restore published.db cache
         uses: actions/cache@v4
         with:
           path: published.db
           key: published-db-${{ github.run_id }}
           restore-keys: published-db-
+
       - name: Restore wechat_token.db cache
         uses: actions/cache@v4
         with:
           path: wechat_token.db
           key: wechat-token-${{ github.run_id }}
           restore-keys: wechat-token-
-      - run: pip install -r requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
       - name: Install Playwright browsers
         run: python -m playwright install chromium --with-deps
-      - run: python pipeline.py
-        env:
-          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
-          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
-          NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
-          WECHAT_APP_ID: ${{ secrets.WECHAT_APP_ID }}
-          WECHAT_APP_SECRET: ${{ secrets.WECHAT_APP_SECRET }}
-          WECHAT_COVER_MEDIA_ID: ${{ secrets.WECHAT_COVER_MEDIA_ID }}
-          BARK_KEY: ${{ secrets.BARK_KEY }}
-          PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RSSHUB_BASE_URL: ${{ secrets.RSSHUB_BASE_URL }}
-          MANUAL_URL: ${{ github.event.inputs.url }}
+
+      # Determine which stage to run based on trigger time or manual input
+      - name: Run pipeline
+        run: |
+          HOUR=$(date -u +%H)
+          INPUT_STAGE="${{ github.event.inputs.stage }}"
+          MANUAL_URL_VAL="${{ github.event.inputs.url }}"
+
+          if [ -n "$MANUAL_URL_VAL" ]; then
+            # Manual URL — always single-shot (fetch + publish in one go)
+            echo "Manual URL provided — running single-shot pipeline"
+            python pipeline.py
+          elif [ -n "$INPUT_STAGE" ]; then
+            # Explicit stage from workflow_dispatch
+            echo "Running stage: $INPUT_STAGE"
+            python pipeline.py --stage "$INPUT_STAGE"
+          elif [ "$HOUR" = "00" ]; then
+            # 00:00 UTC = 08:00 CST → Stage 1
+            echo "Running Stage 1 (fetch)"
+            python pipeline.py --stage fetch
+          elif [ "$HOUR" = "04" ]; then
+            # 04:00 UTC = 12:00 CST → Stage 2
+            echo "Running Stage 2 (publish)"
+            python pipeline.py --stage publish
+          else
+            # Fallback — single-shot
+            echo "Unknown trigger time — running single-shot pipeline"
+            python pipeline.py
+          fi
