@@ -19,6 +19,7 @@ WECHAT_COVER_MEDIA_ID = os.environ.get("WECHAT_COVER_MEDIA_ID", "")
 # Notion — optional; pipeline writes to Notion if token is set
 NOTION_TOKEN = os.environ.get("NOTION_TOKEN", "")
 NOTION_DATABASE_ID = os.environ.get("NOTION_DATABASE_ID", "")
+NOTION_CANDIDATES_DATABASE_ID = os.environ.get("NOTION_CANDIDATES_DATABASE_ID", "")
 BARK_KEY = os.environ.get("BARK_KEY", "")
 PUSHPLUS_TOKEN = os.environ.get("PUSHPLUS_TOKEN", "")
 USE_MD2WECHAT = os.environ.get("USE_MD2WECHAT", "false").lower() == "true"
