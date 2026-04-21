@@ -22,7 +22,6 @@ def select_best(articles: list[dict]) -> dict | None:
     best, best_score = scored[0]
     print(f"[scorer] Best: '{best['title']}' score={best_score}")
     if best_score < 30:
-        print("[scorer] Best score < 30, skipping today")
-        return None
+        print(f"[scorer] Best score {best_score} < 30 — publishing anyway (never skip)")
     best["score"] = best_score
     return best
