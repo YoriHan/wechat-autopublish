@@ -226,6 +226,16 @@ def md_to_wechat_html(md_text: str, chinese_title: str, theme_key: str = DEFAULT
         html
     )
 
+    # CTA block (top & bottom)
+    cta_html = (
+        '<p style="font-size:12px;font-weight:bold;color:#555;'
+        'text-align:center;line-height:1.8;margin:0;">'
+        '关注<span style="color:#FF6600;">养虾社</span>，'
+        '一个专注于AI优质内容分享的中文社区。'
+        '</p>'
+    )
+    cta_divider = '<hr style="border:none;border-top:1px solid #e5e5e5;margin:16px 0;">'
+
     # Title
     title_html = (
         f'<h1 style="font-size:22px;font-weight:bold;color:#1a1a1a;'
@@ -235,12 +245,7 @@ def md_to_wechat_html(md_text: str, chinese_title: str, theme_key: str = DEFAULT
 
     # Footer
     footer_html = (
-        '<hr style="border:none;border-top:1px solid #e5e5e5;margin:36px 0 20px;">'
-        '<p style="font-size:13px;color:#999;text-align:center;'
-        'line-height:1.8;margin:0;">'
-        'AI 译介 · 每日一篇<br>'
-        '<span style="color:#ccc;">转载请注明来源</span>'
-        '</p>'
+        f'{cta_divider}{cta_html}'
     )
 
     container_style = (
@@ -248,7 +253,8 @@ def md_to_wechat_html(md_text: str, chinese_title: str, theme_key: str = DEFAULT
         '"Helvetica Neue","Microsoft YaHei",sans-serif;'
         'max-width:677px;margin:0 auto;padding:0 20px;background:#fff;'
     )
-    return f'<section style="{container_style}">{title_html}{html}{footer_html}</section>'
+    header_block = f'{cta_html}{cta_divider}'
+    return f'<section style="{container_style}">{header_block}{title_html}{html}{footer_html}</section>'
 
 
 def format_article(translated_md: str, chinese_title: str, theme_key: str = DEFAULT_THEME) -> tuple[str, str]:
