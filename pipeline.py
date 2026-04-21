@@ -6,12 +6,14 @@ from fetcher import fetch_all, fetch_full_text
 from scorer import select_best
 from translator import translate, extract_chinese_title
 from formatter import format_article, format_article_md2wechat
-from wechat import upload_image, create_draft
 from notifier import notify_review_ready, send_pushplus, send_bark
 from image_gen import generate_cover
 
 DRY_RUN = os.getenv("DRY_RUN", "").lower() in ("1", "true", "yes")
-from config import USE_MD2WECHAT, WECHAT_THEME
+from config import USE_MD2WECHAT, WECHAT_THEME, WECHAT_APP_ID, WECHAT_APP_SECRET, NOTION_TOKEN, NOTION_DATABASE_ID
+
+WECHAT_ENABLED = bool(WECHAT_APP_ID and WECHAT_APP_SECRET)
+NOTION_ENABLED = bool(NOTION_TOKEN and NOTION_DATABASE_ID)
 
 def run():
     if DRY_RUN:
@@ -48,32 +50,51 @@ def run():
     chinese_title = extract_chinese_title(translated)
     print(f"[pipeline] Chinese title: {chinese_title}")
 
-    print("[pipeline] Formatting...")
-    if USE_MD2WECHAT:
-        print(f"[pipeline] Using md2wechat theme: {WECHAT_THEME}")
-        html, summary = format_article_md2wechat(translated, chinese_title, WECHAT_THEME)
-    else:
-        html, summary = format_article(translated, chinese_title)
+    summary = translated[:200].replace("\n", " ")
+    notion_url = ""
 
-    # Auto-generate + upload cover image (optional)
-    cover_media_id = ""
-    cover_path = generate_cover(chinese_title, summary)
-    if cover_path:
-        print("[pipeline] Uploading cover image to WeChat...")
-        try:
-            cover_media_id = upload_image(cover_path)
-            print(f"[pipeline] Cover media_id: {cover_media_id}")
-        except Exception as e:
-            print(f"[pipeline] Cover upload failed (using static): {e}")
+    # — Notion output —
+    if NOTION_ENABLED:
+        print("[pipeline] Writing to Notion...")
+        from notion_writer import write_to_notion
+        notion_url = write_to_notion(chinese_title, translated, best["url"])
 
-    print("[pipeline] Creating WeChat draft...")
-    draft_id = create_draft(chinese_title, html, source_url=best["url"], cover_media_id=cover_media_id)
-    print(f"[pipeline] Draft created: {draft_id}")
+    # — WeChat output —
+    if WECHAT_ENABLED:
+        print("[pipeline] Formatting for WeChat...")
+        if USE_MD2WECHAT:
+            print(f"[pipeline] Using md2wechat theme: {WECHAT_THEME}")
+            html, summary = format_article_md2wechat(translated, chinese_title, WECHAT_THEME)
+        else:
+            html, summary = format_article(translated, chinese_title)
+
+        cover_media_id = ""
+        cover_path = generate_cover(chinese_title, summary)
+        if cover_path:
+            print("[pipeline] Uploading cover image to WeChat...")
+            try:
+                from wechat import upload_image, create_draft
+                cover_media_id = upload_image(cover_path)
+                print(f"[pipeline] Cover media_id: {cover_media_id}")
+            except Exception as e:
+                print(f"[pipeline] Cover upload failed (using static): {e}")
+
+        print("[pipeline] Creating WeChat draft...")
+        from wechat import upload_image, create_draft
+        draft_id = create_draft(chinese_title, html, source_url=best["url"], cover_media_id=cover_media_id)
+        print(f"[pipeline] Draft created: {draft_id}")
+    elif not NOTION_ENABLED:
+        print("[pipeline] WARNING: Neither WeChat nor Notion is configured. Translation complete but not published.")
+        print(f"[pipeline] Translated content:\n{translated[:500]}...")
 
     mark_published(best["url"], chinese_title)
 
     print("[pipeline] Sending notification...")
-    notify_review_ready(chinese_title, summary)
+    if notion_url:
+        msg = f"「{chinese_title}」已存入 Notion，点击查看：{notion_url}"
+        send_bark("公众号素材已就绪 📝", msg) or send_pushplus("公众号素材已就绪 📝", msg)
+    else:
+        notify_review_ready(chinese_title, summary)
 
     print("[pipeline] Done.")
 

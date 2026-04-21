@@ -7,12 +7,18 @@ load_dotenv(Path(__file__).parent / ".env")
 
 try:
     DEEPSEEK_API_KEY = os.environ["DEEPSEEK_API_KEY"]
-    WECHAT_APP_ID = os.environ["WECHAT_APP_ID"]
-    WECHAT_APP_SECRET = os.environ["WECHAT_APP_SECRET"]
 except KeyError as e:
     print(f"[config] Missing required env var: {e}. Check your .env file.", file=sys.stderr)
     sys.exit(1)
+
+# WeChat — optional; pipeline skips WeChat output if not set
+WECHAT_APP_ID = os.environ.get("WECHAT_APP_ID", "")
+WECHAT_APP_SECRET = os.environ.get("WECHAT_APP_SECRET", "")
 WECHAT_COVER_MEDIA_ID = os.environ.get("WECHAT_COVER_MEDIA_ID", "")
+
+# Notion — optional; pipeline writes to Notion if token is set
+NOTION_TOKEN = os.environ.get("NOTION_TOKEN", "")
+NOTION_DATABASE_ID = os.environ.get("NOTION_DATABASE_ID", "")
 BARK_KEY = os.environ.get("BARK_KEY", "")
 PUSHPLUS_TOKEN = os.environ.get("PUSHPLUS_TOKEN", "")
 USE_MD2WECHAT = os.environ.get("USE_MD2WECHAT", "false").lower() == "true"
