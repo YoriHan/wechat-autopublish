@@ -1,7 +1,10 @@
-import anthropic
-from config import ANTHROPIC_API_KEY
+from openai import OpenAI
+from config import DEEPSEEK_API_KEY
 
-client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+client = OpenAI(
+    api_key=DEEPSEEK_API_KEY,
+    base_url="https://api.deepseek.com/v1",
+)
 
 SYSTEM_PROMPT = (
     "你是一名专业的AI科技媒体编辑，为中国微信公众号受众翻译外文文章。\n\n"
@@ -45,13 +48,15 @@ def translate(article: dict, full_text: str) -> str:
         url=article["url"],
         content=full_text or article["summary"] or article["title"],
     )
-    msg = client.messages.create(
-        model="claude-sonnet-4-6",
+    resp = client.chat.completions.create(
+        model="deepseek-chat",
         max_tokens=4096,
-        system=SYSTEM_PROMPT,
-        messages=[{"role": "user", "content": prompt}],
+        messages=[
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": prompt},
+        ],
     )
-    return msg.content[0].text
+    return resp.choices[0].message.content
 
 def extract_chinese_title(translated_md: str) -> str:
     lines = [l.strip() for l in translated_md.splitlines()]

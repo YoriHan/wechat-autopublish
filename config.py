@@ -6,7 +6,7 @@ import sys
 load_dotenv(Path(__file__).parent / ".env")
 
 try:
-    ANTHROPIC_API_KEY = os.environ["ANTHROPIC_API_KEY"]
+    DEEPSEEK_API_KEY = os.environ["DEEPSEEK_API_KEY"]
     WECHAT_APP_ID = os.environ["WECHAT_APP_ID"]
     WECHAT_APP_SECRET = os.environ["WECHAT_APP_SECRET"]
 except KeyError as e:
