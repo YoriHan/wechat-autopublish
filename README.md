@@ -148,8 +148,8 @@ cp .env.example .env
 | 变量 | 必填 | 说明 |
 |------|------|------|
 | `DEEPSEEK_API_KEY` | ✅ | [DeepSeek 控制台](https://platform.deepseek.com) 获取 |
-| `NOTION_TOKEN` | ✅ | Notion Integration token |
-| `NOTION_DATABASE_ID` | ✅ | 文章存档数据库 ID |
+| `NOTION_TOKEN` | 推荐 | Notion Integration token（不填则跳过 Notion 写入） |
+| `NOTION_DATABASE_ID` | 推荐 | 文章存档数据库 ID |
 | `NOTION_CANDIDATES_DATABASE_ID` | 推荐 | 每日候选数据库 ID（不填则跳过人工选稿，直接发 Top 1） |
 | `WECHAT_APP_ID` | 可选 | 微信公众号 AppID |
 | `WECHAT_APP_SECRET` | 可选 | 微信公众号 AppSecret |
@@ -182,7 +182,10 @@ DRY_RUN=true python pipeline.py
 # 只跑 Stage 1（抓取 + 选稿推送）
 python pipeline.py --stage fetch
 
-# 指定文章 URL 直接发布
+# 只跑 Stage 2（翻译 + 发布，需先跑过 fetch）
+python pipeline.py --stage publish
+
+# 指定文章 URL 直接发布（单次全流程）
 MANUAL_URL=https://example.com/article python pipeline.py
 ```
 
