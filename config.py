@@ -66,6 +66,37 @@ TWITTER_RSS_ACCOUNTS = [
     ("benedictevans",  "Benedict Evans",        2),  # best tech industry analysis
     # ── Engineering blogs ──
     ("netflixtech",    "Netflix Tech",          2),  # high-quality engineering articles
+    # ── High-freq article sharers (A类) ──
+    ("_akhaliq",       "AK / Papers Daily",     1),  # posts arXiv papers every day, must-follow
+    ("omarsar0",       "Elvis Saravia",         1),  # DAIR.AI, AI newsletter curator
+    ("chiphuyen",      "Chip Huyen",            1),  # ML systems, Designing ML Systems author
+    ("rasbt",          "Sebastian Raschka",     1),  # ML books, frequent article shares
+    ("svpino",         "Santiago Valdarrama",   1),  # ML practitioner, tutorials & articles
+    ("reach_vb",       "Vaibhav Srivastava",    1),  # HuggingFace daily papers curator, very prolific
+    ("arankomatsuzaki","Aran Komatsuzaki",       1),  # arXiv papers daily, JAX/TPU research
+    ("cwolferesearch", "Cameron Wolfe",          1),  # Deep Learning Focus newsletter, paper breakdowns
+    # ── Framework authors & practitioners (B类) ──
+    ("jeremyphoward",  "Jeremy Howard",         2),  # fast.ai
+    ("goodside",       "Riley Goodside",        2),  # prompt engineering expert
+    ("ClementDelangue","Clément Delangue",      2),  # HuggingFace CEO personal account
+    ("jackclarkSF",    "Jack Clark",            2),  # Import AI newsletter, Anthropic co-founder
+    ("eugeneyan",      "Eugene Yan",            2),  # applied ML at Amazon, writes deep essays
+    ("srush_nlp",      "Sasha Rush",            2),  # Harvard NLP, LLM research & tools
+    ("HamelHusain",    "Hamel Husain",          2),  # ML engineer, RAG/LLM practitioner tutorials
+    ("AravSrinivas",   "Arav Srinivas",         2),  # Perplexity AI CEO
+    ("GaryMarcus",     "Gary Marcus",           2),  # AI researcher/critic, frequent op-eds
+    # ── AI platforms & orgs (B类) ──
+    ("xai",            "xAI",                   2),  # Elon's xAI, Grok announcements
+    ("Gradio",         "Gradio",                2),  # ML demo platform, tutorials
+    ("llama_index",    "LlamaIndex",            2),  # LlamaIndex / Jerry Liu
+    ("MSFTResearch",   "Microsoft Research",    2),  # MSFT Research blog & papers
+    # ── Engineering & dev education (C类) ──
+    ("GergelyOrosz",   "Gergely Orosz",         2),  # Pragmatic Engineer, must-read eng articles
+    ("addyosmani",     "Addy Osmani",           2),  # Google Chrome, web perf articles
+    ("swyx",           "swyx",                  2),  # developer educator, lots of AI analysis
+    ("b0rk",           "Julia Evans",           2),  # zines & deep dives on systems/debugging
+    ("danluu",         "Dan Luu",               2),  # systems engineering essays, very thorough
+    ("copyconstruct",  "Cindy Sridharan",       2),  # distributed systems, observability articles
 ]
 
 
