@@ -35,22 +35,37 @@ BASE_DIR = Path(__file__).parent
 # Each entry produces an RSS feed: {RSSHUB_BASE_URL}/twitter/user/{handle}
 # The fetcher extracts article links shared in tweets (not just the tweet itself).
 TWITTER_RSS_ACCOUNTS = [
-    # AI lab leaders
-    ("sama",          "Sam Altman",        1),
-    ("karpathy",      "Andrej Karpathy",   1),
-    ("ylecun",        "Yann LeCun",        1),
-    ("demishassabis", "Demis Hassabis",    1),
-    ("AnthropicAI",   "Anthropic",         1),
-    ("OpenAI",        "OpenAI",            1),
-    # High-signal researchers & practitioners
-    ("emollick",      "Ethan Mollick",     1),  # best applied AI takes
-    ("DrJimFan",      "Jim Fan / NVIDIA",  1),
-    ("gdb",           "Greg Brockman",     1),
-    ("ilyasut",       "Ilya Sutskever",    2),
-    # Community / tools
-    ("huggingface",   "HuggingFace",       2),
-    ("LangChainAI",   "LangChain",         2),
-    ("weights_biases","Weights & Biases",  2),
+    # ── AI Lab leaders ──
+    ("sama",           "Sam Altman",           1),
+    ("karpathy",       "Andrej Karpathy",       1),
+    ("ylecun",         "Yann LeCun",            1),
+    ("demishassabis",  "Demis Hassabis",        1),
+    ("AnthropicAI",    "Anthropic",             1),
+    ("OpenAI",         "OpenAI",                1),
+    ("GoogleAI",       "Google AI",             1),
+    ("MetaAI",         "Meta AI",               1),
+    ("MistralAI",      "Mistral AI",            1),
+    # ── Researchers & practitioners ──
+    ("emollick",       "Ethan Mollick",         1),  # best applied AI commentary
+    ("DrJimFan",       "Jim Fan / NVIDIA",      1),  # robotics + embodied AI
+    ("gdb",            "Greg Brockman",         1),
+    ("fchollet",       "François Chollet",      1),  # Keras, ARC Prize
+    ("JeffDean",       "Jeff Dean",             1),  # Google
+    ("ilyasut",        "Ilya Sutskever",        2),
+    ("npew",           "Nathan Lambert",        2),  # RLHF / alignment
+    ("hardmaru",       "David Ha",              2),  # Sakana AI
+    # ── AI tools & platforms ──
+    ("huggingface",    "HuggingFace",           2),
+    ("LangChainAI",    "LangChain",             2),
+    ("weights_biases", "Weights & Biases",      2),
+    ("ReplicateHQ",    "Replicate",             2),
+    ("Scale_AI",       "Scale AI",              2),
+    # ── Tech analysis & VC ──
+    ("paulg",          "Paul Graham",           2),  # YC essays on tech
+    ("pmarca",         "Marc Andreessen",       2),  # a16z
+    ("benedictevans",  "Benedict Evans",        2),  # best tech industry analysis
+    # ── Engineering blogs ──
+    ("netflixtech",    "Netflix Tech",          2),  # high-quality engineering articles
 ]
 
 
