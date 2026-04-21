@@ -43,14 +43,31 @@ def _md_to_blocks(md: str) -> list:
     return blocks
 
 
-def write_to_notion(title: str, translated_md: str, source_url: str) -> str:
+def _html_code_blocks(html: str) -> list:
+    """Wrap WeChat HTML in a Notion code block (splits into 2000-char chunks)."""
+    CHUNK = 2000
+    chunks = [html[i:i+CHUNK] for i in range(0, len(html), CHUNK)]
+    rich_text = [{"type": "text", "text": {"content": c}} for c in chunks]
+    return [
+        {"object": "block", "type": "divider", "divider": {}},
+        {"object": "block", "type": "heading_2",
+         "heading_2": {"rich_text": [{"type": "text", "text": {"content": "微信排版 HTML（直接复制粘贴）"}}]}},
+        {"object": "block", "type": "code",
+         "code": {"language": "html", "rich_text": rich_text}},
+    ]
+
+
+def write_to_notion(title: str, translated_md: str, source_url: str, wechat_html: str = "") -> str:
     """Create a Notion page and return its URL."""
     today = date.today().isoformat()
 
+    content_blocks = _md_to_blocks(translated_md)
+    if wechat_html:
+        content_blocks += _html_code_blocks(wechat_html)
+
     # Notion allows max 100 blocks per append call
-    all_blocks = _md_to_blocks(translated_md)
-    first_batch = all_blocks[:100]
-    rest_batches = [all_blocks[i:i+100] for i in range(100, len(all_blocks), 100)]
+    first_batch = content_blocks[:100]
+    rest_batches = [content_blocks[i:i+100] for i in range(100, len(content_blocks), 100)]
 
     payload = {
         "parent": {"database_id": NOTION_DATABASE_ID},

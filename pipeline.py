@@ -57,7 +57,9 @@ def run():
     if NOTION_ENABLED:
         print("[pipeline] Writing to Notion...")
         from notion_writer import write_to_notion
-        notion_url = write_to_notion(chinese_title, translated, best["url"])
+        print("[pipeline] Formatting WeChat HTML for Notion...")
+        wechat_html, _ = format_article(translated, chinese_title)
+        notion_url = write_to_notion(chinese_title, translated, best["url"], wechat_html=wechat_html)
 
     # — WeChat output —
     if WECHAT_ENABLED:
