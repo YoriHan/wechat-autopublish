@@ -37,3 +37,4 @@ jobs:
           BARK_KEY: ${{ secrets.BARK_KEY }}
           PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RSSHUB_BASE_URL: ${{ secrets.RSSHUB_BASE_URL }}

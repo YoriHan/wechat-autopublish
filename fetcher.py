@@ -31,22 +31,53 @@ def _is_valid_img(src: str) -> bool:
     return True
 
 
+_URL_RE = re.compile(r'https?://[^\s"<>\']+')
+# Domains that are the tweet itself or URL shorteners — skip as article URLs
+_SKIP_DOMAINS = {"twitter.com", "x.com", "t.co", "bit.ly", "tinyurl.com", "ow.ly"}
+
+
+def _extract_article_url(entry: dict) -> str | None:
+    """For Twitter RSS entries, find the first external article link in the tweet."""
+    content = entry.get("summary", "")
+    if entry.get("content"):
+        content += entry.get("content", [{}])[0].get("value", "")
+    for url in _URL_RE.findall(content):
+        domain = url.split("/")[2].lower().lstrip("www.")
+        if domain not in _SKIP_DOMAINS:
+            return url
+    return None
+
+
 # --- RSS ---
 
 def fetch_rss(source: dict) -> list[dict]:
     feed = feedparser.parse(source["url"])
+    is_twitter = source.get("twitter", False)
     articles = []
-    for entry in feed.entries[:10]:
-        url = entry.get("link", "")
-        if not url or is_duplicate(url):
+    for entry in feed.entries[:15]:
+        tweet_url = entry.get("link", "")
+
+        if is_twitter:
+            # For Twitter sources: prefer the article linked in the tweet
+            article_url = _extract_article_url(entry) or tweet_url
+        else:
+            article_url = tweet_url
+
+        if not article_url or is_duplicate(article_url):
             continue
+
+        title = entry.get("title", "").strip()
+        # Twitter RSS titles are often just the tweet text — keep them as summary
+        summary = title if is_twitter else entry.get("summary", "")[:1000]
+
         articles.append({
-            "title": entry.get("title", "").strip(),
-            "url": url,
-            "summary": entry.get("summary", "")[:1000],
+            "title": title,
+            "url": article_url,
+            "summary": summary[:1000],
             "published_ts": _parse_published(entry),
             "source": source["name"],
             "tier": source["tier"],
+            "tweet_url": tweet_url if is_twitter else "",
         })
     return articles
 
