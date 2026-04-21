@@ -5,7 +5,7 @@ from db import init_db, mark_published
 from fetcher import fetch_all, fetch_full_text
 from scorer import select_best
 from translator import translate, extract_chinese_title
-from formatter import format_article, format_article_md2wechat
+from formatter import format_article, format_article_md2wechat, format_all_themes
 from notifier import notify_review_ready, send_pushplus, send_bark
 from image_gen import generate_cover
 
@@ -55,11 +55,27 @@ def run():
 
     # — Notion output —
     if NOTION_ENABLED:
+        print("[pipeline] Formatting all WeChat themes...")
+        themed = format_all_themes(translated, chinese_title)  # [(key, label, html), ...]
+
+        print("[pipeline] Taking theme screenshots...")
+        screenshots: dict[str, str] = {}
+        try:
+            from screenshot import render_and_upload
+            for key, label, html in themed:
+                print(f"[pipeline] Screenshotting {label}...")
+                url = render_and_upload(html, key)
+                if url:
+                    screenshots[key] = url
+        except Exception as e:
+            print(f"[pipeline] Screenshot step failed (non-fatal): {e}")
+
         print("[pipeline] Writing to Notion...")
         from notion_writer import write_to_notion
-        print("[pipeline] Formatting WeChat HTML for Notion...")
-        wechat_html, _ = format_article(translated, chinese_title)
-        notion_url = write_to_notion(chinese_title, translated, best["url"], wechat_html=wechat_html)
+        notion_url = write_to_notion(
+            chinese_title, translated, best["url"],
+            themes=themed, screenshots=screenshots,
+        )
 
     # — WeChat output —
     if WECHAT_ENABLED:

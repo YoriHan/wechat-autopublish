@@ -1,6 +1,5 @@
 import mistune, re, subprocess, json, tempfile, os
 from openai import OpenAI
-from pathlib import Path
 from config import DEEPSEEK_API_KEY
 
 # mistune PINNED to 2.0.5 — do NOT upgrade. 3.x removed mistune.html()
@@ -13,6 +12,46 @@ def _get_deepseek():
     if _deepseek is None:
         _deepseek = OpenAI(api_key=DEEPSEEK_API_KEY, base_url="https://api.deepseek.com/v1")
     return _deepseek
+
+
+# ---------- Theme definitions ----------
+
+THEMES: dict[str, dict] = {
+    "green": {
+        "label":    "🟢 绿色清新",
+        "primary":  "#07C160",
+        "bg_light": "#f6fff9",
+        "strong":   "#07C160",
+        "link":     "#07C160",
+        "h_border": "#07C160",
+    },
+    "blue": {
+        "label":    "🔵 蓝色商务",
+        "primary":  "#1677FF",
+        "bg_light": "#f0f5ff",
+        "strong":   "#1677FF",
+        "link":     "#1677FF",
+        "h_border": "#1677FF",
+    },
+    "minimal": {
+        "label":    "⚫ 极简黑白",
+        "primary":  "#222222",
+        "bg_light": "#f5f5f5",
+        "strong":   "#111111",
+        "link":     "#333333",
+        "h_border": "#555555",
+    },
+    "purple": {
+        "label":    "🟣 紫色优雅",
+        "primary":  "#7C3AED",
+        "bg_light": "#f5f0ff",
+        "strong":   "#7C3AED",
+        "link":     "#7C3AED",
+        "h_border": "#7C3AED",
+    },
+}
+
+DEFAULT_THEME = "green"
 
 
 # ---------- md2wechat AI mode (enhanced styling) ----------
@@ -52,7 +91,6 @@ def format_article_md2wechat(translated_md: str, chinese_title: str, theme: str 
             messages=[{"role": "user", "content": prompt}],
         )
         html = resp.choices[0].message.content
-        # Strip markdown code fences if the model wraps the HTML
         if "```html" in html:
             html = html.split("```html")[1].split("```")[0].strip()
         elif "```" in html:
@@ -67,28 +105,30 @@ def format_article_md2wechat(translated_md: str, chinese_title: str, theme: str 
     return html, summary
 
 
-# ---------- Default mistune-based formatter (doocs/md-inspired) ----------
+# ---------- Theme-aware mistune formatter ----------
 
-def md_to_wechat_html(md_text: str, chinese_title: str) -> str:
-    # Pre-process blockquotes before mistune (mistune renders them as <blockquote>)
+def md_to_wechat_html(md_text: str, chinese_title: str, theme_key: str = DEFAULT_THEME) -> str:
+    t = THEMES.get(theme_key, THEMES[DEFAULT_THEME])
+    p = t["primary"]
+    bg = t["bg_light"]
+    strong_c = t["strong"]
+    link_c = t["link"]
+
     processed = re.sub(r'^# .+\r?\n?', '', md_text, count=1, flags=re.MULTILINE)
-
     html = mistune.html(processed)
-
-    # ---------- doocs/md-inspired inline styles ----------
 
     # Headings
     html = html.replace(
         '<h1>',
-        '<h1 style="font-size:24px;font-weight:bold;color:#1a1a1a;'
-        'margin:32px 0 16px;line-height:1.4;'
-        'border-bottom:2px solid #07C160;padding-bottom:8px;">'
+        f'<h1 style="font-size:24px;font-weight:bold;color:#1a1a1a;'
+        f'margin:32px 0 16px;line-height:1.4;'
+        f'border-bottom:2px solid {p};padding-bottom:8px;">'
     )
     html = html.replace(
         '<h2>',
-        '<h2 style="font-size:20px;font-weight:bold;color:#1a1a1a;'
-        'margin:28px 0 12px;line-height:1.4;'
-        'border-left:4px solid #07C160;padding-left:10px;">'
+        f'<h2 style="font-size:20px;font-weight:bold;color:#1a1a1a;'
+        f'margin:28px 0 12px;line-height:1.4;'
+        f'border-left:4px solid {p};padding-left:10px;">'
     )
     html = html.replace(
         '<h3>',
@@ -110,7 +150,7 @@ def md_to_wechat_html(md_text: str, chinese_title: str) -> str:
     # Strong / Em
     html = html.replace(
         '<strong>',
-        '<strong style="color:#07C160;font-weight:bold;">'
+        f'<strong style="color:{strong_c};font-weight:bold;">'
     )
     html = html.replace(
         '<em>',
@@ -131,15 +171,13 @@ def md_to_wechat_html(md_text: str, chinese_title: str) -> str:
         '<li style="font-size:15px;line-height:1.9;color:#444;margin:6px 0;">'
     )
 
-    # Blockquotes — doocs/md style: left accent bar + soft background
+    # Blockquotes
     html = html.replace(
         '<blockquote>',
-        '<blockquote style="border-left:4px solid #07C160;'
-        'background:#f6fff9;margin:16px 0;padding:12px 16px;'
-        'border-radius:0 4px 4px 0;">'
+        f'<blockquote style="border-left:4px solid {p};'
+        f'background:{bg};margin:16px 0;padding:12px 16px;'
+        f'border-radius:0 4px 4px 0;">'
     )
-    # Also style paragraphs inside blockquotes (already styled above, but the
-    # blockquote wrapper handles the visual framing)
 
     # Inline code
     html = re.sub(
@@ -150,7 +188,7 @@ def md_to_wechat_html(md_text: str, chinese_title: str) -> str:
         html
     )
 
-    # Code blocks (pre > code)
+    # Code blocks
     html = html.replace(
         '<pre>',
         '<pre style="background:#1e1e1e;color:#d4d4d4;'
@@ -159,7 +197,7 @@ def md_to_wechat_html(md_text: str, chinese_title: str) -> str:
         'font-family:\'Courier New\',Courier,monospace;">'
     )
 
-    # Horizontal rule
+    # HR
     html = html.replace(
         '<hr>',
         '<hr style="border:none;border-top:1px solid #e5e5e5;margin:28px 0;">'
@@ -172,33 +210,30 @@ def md_to_wechat_html(md_text: str, chinese_title: str) -> str:
     )
     html = html.replace(
         '<th>',
-        '<th style="background:#07C160;color:#fff;padding:10px 14px;'
-        'text-align:left;font-weight:bold;border:1px solid #07C160;">'
+        f'<th style="background:{p};color:#fff;padding:10px 14px;'
+        f'text-align:left;font-weight:bold;border:1px solid {p};">'
     )
     html = html.replace(
         '<td>',
         '<td style="padding:9px 14px;border:1px solid #e5e5e5;color:#444;line-height:1.6;">'
     )
-    html = html.replace(
-        '<tr>',
-        '<tr style="background:#fff;">'
-    )
+    html = html.replace('<tr>', '<tr style="background:#fff;">')
 
     # Links
     html = re.sub(
         r'<a href=(["\'][^"\']*["\'])>',
-        r'<a href=\1 style="color:#07C160;text-decoration:none;border-bottom:1px solid #07C160;">',
+        rf'<a href=\1 style="color:{link_c};text-decoration:none;border-bottom:1px solid {link_c};">',
         html
     )
 
-    # ---------- Title block ----------
+    # Title
     title_html = (
         f'<h1 style="font-size:22px;font-weight:bold;color:#1a1a1a;'
         f'margin:20px 0 8px;line-height:1.4;'
-        f'border-bottom:2px solid #07C160;padding-bottom:8px;">{chinese_title}</h1>'
+        f'border-bottom:2px solid {p};padding-bottom:8px;">{chinese_title}</h1>'
     )
 
-    # ---------- Footer ----------
+    # Footer
     footer_html = (
         '<hr style="border:none;border-top:1px solid #e5e5e5;margin:36px 0 20px;">'
         '<p style="font-size:13px;color:#999;text-align:center;'
@@ -208,20 +243,27 @@ def md_to_wechat_html(md_text: str, chinese_title: str) -> str:
         '</p>'
     )
 
-    # ---------- Outer container ----------
     container_style = (
         'font-family:-apple-system,BlinkMacSystemFont,"PingFang SC",'
         '"Helvetica Neue","Microsoft YaHei",sans-serif;'
-        'max-width:677px;margin:0 auto;padding:0 20px;'
-        'background:#fff;'
+        'max-width:677px;margin:0 auto;padding:0 20px;background:#fff;'
     )
     return f'<section style="{container_style}">{title_html}{html}{footer_html}</section>'
 
 
-def format_article(translated_md: str, chinese_title: str) -> tuple[str, str]:
-    html = md_to_wechat_html(translated_md, chinese_title)
+def format_article(translated_md: str, chinese_title: str, theme_key: str = DEFAULT_THEME) -> tuple[str, str]:
+    html = md_to_wechat_html(translated_md, chinese_title, theme_key)
     clean = re.sub(r'<[^>]+>', '', translated_md)
     clean = re.sub(r'[#*`>_\[\]]+', '', clean)
     clean = re.sub(r'\s+', ' ', clean).strip()
     summary = clean[:200] + "..."
     return html, summary
+
+
+def format_all_themes(translated_md: str, chinese_title: str) -> list[tuple[str, str, str]]:
+    """Return [(theme_key, label, html), ...] for all themes."""
+    results = []
+    for key, cfg in THEMES.items():
+        html, _ = format_article(translated_md, chinese_title, key)
+        results.append((key, cfg["label"], html))
+    return results

@@ -43,27 +43,60 @@ def _md_to_blocks(md: str) -> list:
     return blocks
 
 
-def _html_code_blocks(html: str) -> list:
-    """Wrap WeChat HTML in a Notion code block (splits into 2000-char chunks)."""
+def _theme_blocks(label: str, html: str, screenshot_url: str = "") -> list:
+    """Blocks for one theme: divider + heading + optional screenshot + HTML code block."""
     CHUNK = 2000
     chunks = [html[i:i+CHUNK] for i in range(0, len(html), CHUNK)]
     rich_text = [{"type": "text", "text": {"content": c}} for c in chunks]
-    return [
+
+    blocks: list = [
         {"object": "block", "type": "divider", "divider": {}},
-        {"object": "block", "type": "heading_2",
-         "heading_2": {"rich_text": [{"type": "text", "text": {"content": "微信排版 HTML（直接复制粘贴）"}}]}},
-        {"object": "block", "type": "code",
-         "code": {"language": "html", "rich_text": rich_text}},
+        {"object": "block", "type": "heading_3",
+         "heading_3": {"rich_text": [{"type": "text", "text": {"content": label}}]}},
     ]
+    if screenshot_url:
+        blocks.append({
+            "object": "block", "type": "image",
+            "image": {"type": "external", "external": {"url": screenshot_url}},
+        })
+    blocks.append({
+        "object": "block", "type": "code",
+        "code": {"language": "html", "rich_text": rich_text},
+    })
+    return blocks
 
 
-def write_to_notion(title: str, translated_md: str, source_url: str, wechat_html: str = "") -> str:
+def write_to_notion(
+    title: str,
+    translated_md: str,
+    source_url: str,
+    themes: list[tuple[str, str, str]] | None = None,  # [(key, label, html), ...]
+    screenshots: dict[str, str] | None = None,         # {key: url}
+    # legacy single-html fallback
+    wechat_html: str = "",
+) -> str:
     """Create a Notion page and return its URL."""
     today = date.today().isoformat()
+    screenshots = screenshots or {}
 
     content_blocks = _md_to_blocks(translated_md)
-    if wechat_html:
-        content_blocks += _html_code_blocks(wechat_html)
+
+    if themes:
+        # Multi-theme mode: section header + one block-group per theme
+        content_blocks.append({
+            "object": "block", "type": "divider", "divider": {},
+        })
+        content_blocks.append({
+            "object": "block", "type": "heading_2",
+            "heading_2": {"rich_text": [{"type": "text",
+                "text": {"content": "📋 微信排版 HTML — 选一套复制"}}]},
+        })
+        for key, label, html in themes:
+            url = screenshots.get(key, "")
+            content_blocks += _theme_blocks(label, html, url)
+    elif wechat_html:
+        # Legacy single-theme fallback
+        content_blocks += _theme_blocks("微信排版 HTML（直接复制粘贴）", wechat_html)
 
     # Notion allows max 100 blocks per append call
     first_batch = content_blocks[:100]
