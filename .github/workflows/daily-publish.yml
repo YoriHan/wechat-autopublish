@@ -1,5 +1,8 @@
 name: Daily WeChat Publish
+
 on:
+  # Stage 1 — 08:00 JST (23:00 UTC prev-day): fetch & shortlist Top 5
+  # Stage 2 — 12:00 JST (03:00 UTC): translate & publish selected article
   schedule:
     - cron: '0 23 * * *'   # 08:00 JST — Stage 1: fetch & shortlist
     - cron: '0 3 * * *'    # 12:00 JST — Stage 2: translate & publish
@@ -10,53 +13,73 @@ on:
         required: false
         type: string
       stage:
-        description: 'Stage to run: fetch or publish (leave blank for single-shot)'
+        description: 'Pipeline stage to run: fetch | publish | (blank = single-shot)'
         required: false
         type: string
+
+env:
+  DEEPSEEK_API_KEY:              ${{ secrets.DEEPSEEK_API_KEY }}
+  NOTION_TOKEN:                  ${{ secrets.NOTION_TOKEN }}
+  NOTION_DATABASE_ID:            ${{ secrets.NOTION_DATABASE_ID }}
+  NOTION_CANDIDATES_DATABASE_ID: ${{ secrets.NOTION_CANDIDATES_DATABASE_ID }}
+  WECHAT_APP_ID:                 ${{ secrets.WECHAT_APP_ID }}
+  WECHAT_APP_SECRET:             ${{ secrets.WECHAT_APP_SECRET }}
+  WECHAT_COVER_MEDIA_ID:         ${{ secrets.WECHAT_COVER_MEDIA_ID }}
+  BARK_KEY:                      ${{ secrets.BARK_KEY }}
+  PUSHPLUS_TOKEN:                ${{ secrets.PUSHPLUS_TOKEN }}
+  GITHUB_TOKEN:                  ${{ secrets.GITHUB_TOKEN }}
+  RSSHUB_BASE_URL:               ${{ secrets.RSSHUB_BASE_URL }}
+  MANUAL_URL:                    ${{ github.event.inputs.url }}
+
 jobs:
   publish:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+
       - name: Restore published.db cache
         uses: actions/cache@v4
         with:
           path: published.db
           key: published-db-${{ github.run_id }}
           restore-keys: published-db-
+
       - name: Restore wechat_token.db cache
         uses: actions/cache@v4
         with:
           path: wechat_token.db
           key: wechat-token-${{ github.run_id }}
           restore-keys: wechat-token-
-      - run: pip install -r requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
       - name: Install Playwright browsers
         run: python -m playwright install chromium --with-deps
+
+      # Route by schedule expression — avoids wall-clock delay false-negatives
       - name: Run pipeline
         run: |
-          if [ "${{ github.event.schedule }}" = "0 23 * * *" ]; then
+          INPUT_STAGE="${{ github.event.inputs.stage }}"
+          SCHEDULE="${{ github.event.schedule }}"
+
+          if [ -n "${{ github.event.inputs.url }}" ]; then
+            echo "Manual URL provided — running single-shot pipeline"
+            python pipeline.py
+          elif [ -n "$INPUT_STAGE" ]; then
+            echo "Running explicit stage: $INPUT_STAGE"
+            python pipeline.py --stage "$INPUT_STAGE"
+          elif [ "$SCHEDULE" = "0 23 * * *" ]; then
+            echo "Running Stage 1 (fetch) — 08:00 JST"
             python pipeline.py --stage fetch
-          elif [ "${{ github.event.schedule }}" = "0 3 * * *" ]; then
+          elif [ "$SCHEDULE" = "0 3 * * *" ]; then
+            echo "Running Stage 2 (publish) — 12:00 JST"
             python pipeline.py --stage publish
-          elif [ -n "${{ github.event.inputs.stage }}" ]; then
-            python pipeline.py --stage ${{ github.event.inputs.stage }}
           else
+            echo "Unknown trigger — running single-shot pipeline"
             python pipeline.py
           fi
-        env:
-          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
-          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
-          NOTION_DATABASE_ID: ${{ secrets.NOTION_DATABASE_ID }}
-          NOTION_CANDIDATES_DATABASE_ID: ${{ secrets.NOTION_CANDIDATES_DATABASE_ID }}
-          WECHAT_APP_ID: ${{ secrets.WECHAT_APP_ID }}
-          WECHAT_APP_SECRET: ${{ secrets.WECHAT_APP_SECRET }}
-          WECHAT_COVER_MEDIA_ID: ${{ secrets.WECHAT_COVER_MEDIA_ID }}
-          BARK_KEY: ${{ secrets.BARK_KEY }}
-          PUSHPLUS_TOKEN: ${{ secrets.PUSHPLUS_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RSSHUB_BASE_URL: ${{ secrets.RSSHUB_BASE_URL }}
-          MANUAL_URL: ${{ github.event.inputs.url }}
