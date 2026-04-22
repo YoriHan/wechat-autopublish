@@ -49,7 +49,7 @@ def translate(article: dict, full_text: str) -> str:
         source=article["source"],
         author=article.get("author", "未知"),
         url=article["url"],
-        content=full_text or article["summary"] or article["title"],
+        content=full_text or article.get("summary", "") or article["title"],
     )
     resp = client.chat.completions.create(
         model="deepseek-chat",
