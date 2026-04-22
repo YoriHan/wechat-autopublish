@@ -136,8 +136,9 @@ SOURCES = [
     *_twitter_rss_sources(),
 ]
 
-# Legacy — kept for backward compat; no longer used by fetcher
-TWITTER_ACCOUNTS: list[str] = []
+# Playwright-session Twitter accounts (used when RSSHUB_BASE_URL is not set)
+# Tier-1 high-signal accounts only — keeps scrape time reasonable
+TWITTER_ACCOUNTS: list[str] = [h for h, _label, tier in TWITTER_RSS_ACCOUNTS if tier == 1]
 
 RELEVANCE_KEYWORDS = [
     "claude", "llm", "gpt", "gemini", "ai agent", "model", "reasoning",
