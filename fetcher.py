@@ -279,4 +279,12 @@ def fetch_all() -> list[dict]:
     except Exception as e:
         print(f"[fetcher] Twitter/X failed: {e}")
 
+    # Hard cutoff: drop anything older than 48 hours
+    cutoff = time.time() - 48 * 3600
+    before = len(articles)
+    articles = [a for a in articles if a.get("published_ts", 0) >= cutoff]
+    dropped = before - len(articles)
+    if dropped:
+        print(f"[fetcher] Dropped {dropped} articles older than 48 h ({len(articles)} remain)")
+
     return articles
