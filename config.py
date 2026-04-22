@@ -143,3 +143,42 @@ RELEVANCE_KEYWORDS = [
     "claude", "llm", "gpt", "gemini", "ai agent", "model", "reasoning",
     "anthropic", "openai", "deepmind", "reinforcement", "training",
 ]
+
+# Sources that consistently publish long-form technical / research content.
+# Scorer gives these a large bonus.
+DEEP_CONTENT_SOURCES = {
+    "Anthropic Research",
+    "Anthropic News",
+    "Claude Blog",
+    "OpenAI Blog",
+    "Google DeepMind",
+    "HuggingFace Blog",
+    "Papers With Code",
+    "The Batch",
+    "MIT Tech Review",
+}
+
+# Sources that mostly publish short news snippets.
+# Scorer penalises these.
+NEWS_SOURCES = {
+    "TechCrunch AI",
+    "VentureBeat AI",
+    "Bloomberg Tech",
+    "WSJ Tech",
+    "The Verge AI",
+}
+
+# Title words that signal a deep-dive / technical article (add points)
+DEEP_TITLE_SIGNALS = [
+    "research", "paper", "study", "analysis", "how", "why", "explained",
+    "deep dive", "guide", "introduction", "overview", "survey", "benchmark",
+    "evaluating", "understanding", "building", "training", "fine-tuning",
+    "architecture", "framework", "method", "approach", "technique",
+]
+
+# Title words that signal a short news snippet (subtract points)
+NEWS_TITLE_SIGNALS = [
+    " says ", " plans ", " adds ", " launches ", " announces ", " unveils ",
+    " raises ", " acquires ", " throws ", " is working with ", " has an option",
+    " wants to ", " will ", " could ", " might ", "deal", "funding",
+]
