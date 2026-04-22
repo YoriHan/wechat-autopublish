@@ -107,73 +107,107 @@ def _session_exists() -> bool:
 # Scraping
 # ---------------------------------------------------------------------------
 
-def scrape_account(account: str, limit: int = 5) -> list[dict]:
-    """Scrape recent tweets from an X.com account using the saved session."""
-    if not _session_exists():
-        return []
+_UA = (
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/124.0.0.0 Safari/537.36"
+)
 
+
+def _scrape_page(page, account: str, limit: int = 5) -> list[dict]:
+    """Scrape tweets from an already-navigated page. Reuse across accounts."""
     results = []
     try:
-        with sync_playwright() as p:
-            browser = p.chromium.launch(headless=True)
-            ctx = browser.new_context(
-                storage_state=str(SESSION_FILE),
-                viewport={"width": 1280, "height": 900},
-                user_agent=(
-                    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-                    "AppleWebKit/537.36 (KHTML, like Gecko) "
-                    "Chrome/124.0.0.0 Safari/537.36"
-                ),
-            )
-            page = ctx.new_page()
-            page.goto(f"https://x.com/{account}", wait_until="domcontentloaded", timeout=30000)
-            page.wait_for_timeout(4000)
+        page.wait_for_selector('[data-testid="tweetText"]', timeout=12000)
+    except PWTimeout:
+        print(f"[twitter] No tweets visible for @{account}")
+        return []
 
-            try:
-                page.wait_for_selector('[data-testid="tweetText"]', timeout=12000)
-            except PWTimeout:
-                print(f"[twitter] No tweets visible for @{account} — session may be expired")
-                browser.close()
-                return []
+    tweets = page.eval_on_selector_all(
+        '[data-testid="tweetText"]',
+        "els => els.slice(0, 8).map(el => el.innerText)"
+    )
+    links = page.eval_on_selector_all(
+        'article a[href*="/status/"]',
+        "els => [...new Set(els.map(el => el.href))].slice(0, 8)"
+    )
 
-            tweets = page.eval_on_selector_all(
-                '[data-testid="tweetText"]',
-                "els => els.slice(0, 8).map(el => el.innerText)"
-            )
-            links = page.eval_on_selector_all(
-                'article a[href*="/status/"]',
-                "els => [...new Set(els.map(el => el.href))].slice(0, 8)"
-            )
-
-            for i, text in enumerate(tweets[:limit]):
-                text = text.strip()
-                if not text or len(text) < 30:
-                    continue
-                url = links[i] if i < len(links) else f"https://x.com/{account}"
-                results.append({
-                    "title": text[:100].replace("\n", " "),
-                    "summary": text,
-                    "url": url,
-                    "source": f"@{account}",
-                    "author": account,
-                    "tier": 1,
-                    "published_ts": time.time() - i * 1800,
-                })
-
-            browser.close()
-    except Exception as e:
-        print(f"[twitter] Error scraping @{account}: {e}")
-
+    for i, text in enumerate(tweets[:limit]):
+        text = text.strip()
+        if not text or len(text) < 30:
+            continue
+        url = links[i] if i < len(links) else f"https://x.com/{account}"
+        results.append({
+            "title": text[:100].replace("\n", " "),
+            "summary": text,
+            "url": url,
+            "source": f"@{account}",
+            "author": account,
+            "tier": 1,
+            "published_ts": time.time() - i * 1800,
+        })
     return results
 
 
-def scrape_all(accounts: list[str]) -> list[dict]:
-    all_items = []
-    for account in accounts:
-        print(f"[twitter] Scraping @{account}...")
-        items = scrape_account(account, limit=5)
-        print(f"[twitter]   → {len(items)} tweets")
-        all_items.extend(items)
+def scrape_account(account: str, limit: int = 5) -> list[dict]:
+    """Scrape recent tweets from one X.com account (opens its own browser)."""
+    if not _session_exists():
+        return []
+    try:
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True, args=["--no-sandbox"])
+            ctx = browser.new_context(
+                storage_state=str(SESSION_FILE),
+                viewport={"width": 1280, "height": 900},
+                user_agent=_UA,
+            )
+            page = ctx.new_page()
+            page.goto(f"https://x.com/{account}", wait_until="domcontentloaded", timeout=30000)
+            page.wait_for_timeout(3000)
+            results = _scrape_page(page, account, limit)
+            browser.close()
+            return results
+    except Exception as e:
+        print(f"[twitter] Error scraping @{account}: {e}")
+        return []
+
+
+def scrape_all(accounts: list[str], limit_per: int = 5) -> list[dict]:
+    """Scrape all accounts in one shared browser session (much faster)."""
+    if not accounts or not _session_exists():
+        return []
+
+    all_items: list[dict] = []
+    try:
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True, args=["--no-sandbox"])
+            ctx = browser.new_context(
+                storage_state=str(SESSION_FILE),
+                viewport={"width": 1280, "height": 900},
+                user_agent=_UA,
+            )
+            page = ctx.new_page()
+
+            for account in accounts:
+                print(f"[twitter] Scraping @{account}...")
+                try:
+                    page.goto(
+                        f"https://x.com/{account}",
+                        wait_until="domcontentloaded",
+                        timeout=30000,
+                    )
+                    page.wait_for_timeout(2500)
+                    items = _scrape_page(page, account, limit_per)
+                    print(f"[twitter]   → {len(items)} tweets")
+                    all_items.extend(items)
+                except Exception as e:
+                    print(f"[twitter] @{account} failed: {e}")
+                    continue
+
+            browser.close()
+    except Exception as e:
+        print(f"[twitter] scrape_all error: {e}")
+
     return all_items
 
 
