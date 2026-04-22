@@ -67,6 +67,8 @@ TWITTER_RSS_ACCOUNTS = [
     ("benedictevans",  "Benedict Evans",        2),  # best tech industry analysis
     # ── Engineering blogs ──
     ("netflixtech",    "Netflix Tech",          2),  # high-quality engineering articles
+    # ── AI signal aggregators (A+类) — research summaries, must-follow ──
+    ("AlphaSignalAI",  "Alpha Signal",          1),  # top AI research summaries & breakdowns daily
     # ── High-freq article sharers (A类) ──
     ("_akhaliq",       "AK / Papers Daily",     1),  # posts arXiv papers every day, must-follow
     ("omarsar0",       "Elvis Saravia",         1),  # DAIR.AI, AI newsletter curator
@@ -148,6 +150,7 @@ RELEVANCE_KEYWORDS = [
 # Sources that consistently publish long-form technical / research content.
 # Scorer gives these a large bonus.
 DEEP_CONTENT_SOURCES = {
+    # Blogs & research outlets
     "Anthropic Research",
     "Anthropic News",
     "Claude Blog",
@@ -157,6 +160,11 @@ DEEP_CONTENT_SOURCES = {
     "Papers With Code",
     "The Batch",
     "MIT Tech Review",
+    # Twitter signal aggregators — consistently post research breakdowns
+    "@AlphaSignalAI",   # best AI research summaries
+    "@_akhaliq",        # arXiv papers daily
+    "@cwolferesearch",  # Deep Learning Focus paper breakdowns
+    "@omarsar0",        # DAIR.AI newsletter
 }
 
 # Sources that mostly publish short news snippets.
