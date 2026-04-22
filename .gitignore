@@ -8,3 +8,5 @@ __pycache__/
 .twitter_session/
 chrome-debug.log
 .ship/
+.twitter_session/
+.twitter_session/
