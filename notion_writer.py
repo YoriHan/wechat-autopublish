@@ -131,12 +131,14 @@ def write_to_notion(
     source_url: str,
     cover_url: str = "",
     images: list[str] | None = None,
+    wechat_themes: list[tuple[str, str, str]] | None = None,
 ) -> str:
     """
     Create a Notion page with:
       - Cover image (uploaded to Notion) as first block
       - Translated article body (with inline images in place)
       - Source link callout at the bottom
+      - Optional WeChat theme HTML code blocks (one per theme)
     Returns the page URL.
     """
     today = date.today().isoformat()
@@ -165,6 +167,29 @@ def write_to_notion(
             "color": "gray_background",
         },
     })
+
+    # --- WeChat theme HTML code blocks ---
+    if wechat_themes:
+        content_blocks.append({"object": "block", "type": "divider", "divider": {}})
+        content_blocks.append({
+            "object": "block", "type": "heading_2",
+            "heading_2": {"rich_text": [{"type": "text", "text": {"content": "微信排版 HTML"}}]},
+        })
+        for _key, label, html in wechat_themes:
+            content_blocks.append({
+                "object": "block", "type": "heading_3",
+                "heading_3": {"rich_text": [{"type": "text", "text": {"content": label}}]},
+            })
+            # Notion code blocks max 2000 chars — chunk if needed
+            chunk_size = 1990
+            for i in range(0, len(html), chunk_size):
+                content_blocks.append({
+                    "object": "block", "type": "code",
+                    "code": {
+                        "rich_text": [{"type": "text", "text": {"content": html[i:i+chunk_size]}}],
+                        "language": "html",
+                    },
+                })
 
     # Notion allows max 100 blocks per call
     first_batch = content_blocks[:100]

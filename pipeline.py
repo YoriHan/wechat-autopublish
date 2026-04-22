@@ -181,6 +181,11 @@ def _translate_and_publish(article: dict):
 
     notion_url = ""
 
+    # Format all WeChat themes (used for both Notion preview blocks and WeChat draft)
+    print("[pipeline] Formatting WeChat themes...")
+    from formatter import format_all_themes, format_article
+    wechat_themes = format_all_themes(translated, chinese_title)
+
     if NOTION_ENABLED:
         print("[pipeline] Writing to Notion (uploading images)...")
         from notion_writer import write_to_notion
@@ -190,12 +195,12 @@ def _translate_and_publish(article: dict):
             source_url=article["url"],
             cover_url=cover_url,
             images=images,
+            wechat_themes=wechat_themes,
         )
 
     if WECHAT_ENABLED:
-        from formatter import format_article
         from wechat import create_draft
-        print("[pipeline] Formatting for WeChat...")
+        print("[pipeline] Posting WeChat draft (green theme)...")
         html, _ = format_article(translated, chinese_title)
         draft_id = create_draft(
             chinese_title, html,
