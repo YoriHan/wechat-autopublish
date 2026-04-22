@@ -95,7 +95,10 @@ def stage_fetch():
         return
 
     if CANDIDATES_ENABLED:
-        from candidate_store import save_candidates
+        from candidate_store import save_candidates, create_source_log
+        # Write daily source log (all articles with links, grouped by source)
+        print("[pipeline] Writing daily source log to Notion...")
+        create_source_log(articles)
         db_url = save_candidates(top5)
 
         lines = ["今日 Top 5 候选文章已存入 Notion，请选一篇（截止中午12点）：", ""]
