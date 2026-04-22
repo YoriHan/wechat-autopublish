@@ -243,18 +243,14 @@ def md_to_wechat_html(md_text: str, chinese_title: str, theme_key: str = DEFAULT
         f'border-bottom:2px solid {p};padding-bottom:8px;">{chinese_title}</h1>'
     )
 
-    # Footer
-    footer_html = (
-        f'{cta_divider}{cta_html}'
-    )
-
     container_style = (
         'font-family:-apple-system,BlinkMacSystemFont,"PingFang SC",'
         '"Helvetica Neue","Microsoft YaHei",sans-serif;'
         'max-width:677px;margin:0 auto;padding:0 20px;background:#fff;'
     )
-    header_block = f'{cta_html}{cta_divider}'
-    return f'<section style="{container_style}">{header_block}{title_html}{html}{footer_html}</section>'
+    header_block = f'{cta_divider}{cta_html}{cta_divider}'
+    footer_block = f'{cta_divider}{cta_html}{cta_divider}'
+    return f'<section style="{container_style}">{header_block}{title_html}{html}{footer_block}</section>'
 
 
 def format_article(translated_md: str, chinese_title: str, theme_key: str = DEFAULT_THEME) -> tuple[str, str]:
