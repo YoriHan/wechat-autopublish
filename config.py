@@ -30,6 +30,9 @@ WECHAT_THEME = os.environ.get("WECHAT_THEME", "autumn-warm")
 # Then set: RSSHUB_BASE_URL=http://your-server:1200
 RSSHUB_BASE_URL = os.environ.get("RSSHUB_BASE_URL", "https://rsshub.app").rstrip("/")
 
+# GitHub PAT with gist scope — used to upload WeChat HTML themes as private Gists
+GH_PAT = os.environ.get("GH_PAT", "")
+
 BASE_DIR = Path(__file__).parent
 
 # Twitter/X accounts to follow via RSSHub.
