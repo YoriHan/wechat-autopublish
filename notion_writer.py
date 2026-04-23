@@ -1,7 +1,8 @@
 """Write translated articles to a Notion database, with images uploaded directly to Notion."""
 import re
+import json
 import httpx
-from config import NOTION_TOKEN, NOTION_DATABASE_ID
+from config import NOTION_TOKEN, NOTION_DATABASE_ID, GH_PAT
 from datetime import date
 
 _HEADERS = {
@@ -22,7 +23,6 @@ def _upload_image(image_url: str) -> dict:
     Falls back to an external-URL block if upload fails.
     """
     try:
-        # 1. Download the image
         r = httpx.get(
             image_url, timeout=20,
             headers={"User-Agent": "Mozilla/5.0"},
@@ -35,7 +35,6 @@ def _upload_image(image_url: str) -> dict:
         image_bytes = r.content
         filename = image_url.split("/")[-1].split("?")[0] or "image.jpg"
 
-        # 2. Create a Notion file upload slot
         headers_no_ct = {k: v for k, v in _HEADERS.items() if k != "Content-Type"}
         r1 = httpx.post(
             "https://api.notion.com/v1/file_uploads",
@@ -48,7 +47,6 @@ def _upload_image(image_url: str) -> dict:
         upload_url = upload_data["upload_url"]
         file_id = upload_data["id"]
 
-        # 3. Upload the image bytes (multipart)
         r2 = httpx.put(
             upload_url,
             files={"file": (filename, image_bytes, content_type)},
@@ -72,14 +70,59 @@ def _upload_image(image_url: str) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# GitHub Gist upload for WeChat HTML themes
+# ---------------------------------------------------------------------------
+
+def _create_gist(title: str, themes: list[tuple[str, str, str]]) -> str | None:
+    """
+    Upload all WeChat HTML themes as a single private GitHub Gist.
+    Returns the Gist HTML URL, or None on failure.
+
+    Avoids Cloudflare WAF on api.notion.com — Gist API has no WAF on HTML content.
+    """
+    if not GH_PAT:
+        print("[gist] GH_PAT not set — skipping Gist upload")
+        return None
+
+    files = {}
+    for key, label, html in themes:
+        safe_title = re.sub(r"[^\w\-]", "_", title[:40])
+        filename = f"wechat_{key}_{safe_title}.html"
+        files[filename] = {"content": html}
+
+    payload = json.dumps({
+        "description": f"微信排版 HTML — {title}",
+        "public": False,
+        "files": files,
+    }).encode("utf-8")
+
+    try:
+        req = urllib.request.Request(
+            "https://api.github.com/gists",
+            data=payload,
+            method="POST",
+            headers={
+                "Authorization": f"token {GH_PAT}",
+                "Content-Type": "application/json",
+                "Accept": "application/vnd.github+json",
+            },
+        )
+        import urllib.request as _ur
+        with _ur.urlopen(req, timeout=30) as resp:
+            gist = json.loads(resp.read())
+            url = gist.get("html_url", "")
+            print(f"[gist] Created: {url}")
+            return url
+    except Exception as e:
+        print(f"[gist] Gist creation failed: {e}")
+        return None
+
+
+# ---------------------------------------------------------------------------
 # Markdown → Notion blocks  (handles <<<IMG:N>>> placeholders)
 # ---------------------------------------------------------------------------
 
 def _md_to_blocks(md: str, images: list[str] | None = None) -> list:
-    """
-    Convert markdown text to Notion block objects.
-    <<<IMG:N>>> placeholders are replaced with uploaded image blocks.
-    """
     images = images or []
     blocks = []
 
@@ -88,7 +131,6 @@ def _md_to_blocks(md: str, images: list[str] | None = None) -> list:
         if not stripped:
             continue
 
-        # Image placeholder
         m = re.match(r"^<<<IMG:(\d+)>>>$", stripped)
         if m:
             idx = int(m.group(1))
@@ -138,9 +180,11 @@ def write_to_notion(
       - Cover image (uploaded to Notion) as first block
       - Translated article body (with inline images in place)
       - Source link callout at the bottom
-      - Optional WeChat theme HTML code blocks (one per theme)
+      - WeChat theme HTML: uploaded as a private GitHub Gist,
+        Notion page stores the Gist URL (bypasses Cloudflare WAF on api.notion.com)
     Returns the page URL.
     """
+    import urllib.request
     today = date.today().isoformat()
     images = images or []
 
@@ -151,7 +195,7 @@ def write_to_notion(
         print(f"[notion] Uploading cover image...")
         content_blocks.append(_upload_image(cover_url))
 
-    # --- Article body (text + inline images) ---
+    # --- Article body ---
     content_blocks += _md_to_blocks(translated_md, images)
 
     # --- Source callout ---
@@ -168,36 +212,59 @@ def write_to_notion(
         },
     })
 
-    # --- Build WeChat HTML blocks separately (kept out of page-create payload
-    #     to avoid Cloudflare WAF flagging large inline-style HTML in POST body) ---
-    wechat_blocks: list = []
+    # --- WeChat themes: upload to GitHub Gist, store URL in Notion ---
+    # Gist approach bypasses Cloudflare WAF that blocks HTML with inline styles
+    # on PATCH /v1/blocks/{id}/children requests.
+    gist_blocks: list = []
     if wechat_themes:
-        wechat_blocks.append({"object": "block", "type": "divider", "divider": {}})
-        wechat_blocks.append({
+        gist_url = _create_gist(title, wechat_themes)
+        gist_blocks.append({"object": "block", "type": "divider", "divider": {}})
+        gist_blocks.append({
             "object": "block", "type": "heading_2",
             "heading_2": {"rich_text": [{"type": "text", "text": {"content": "微信排版 HTML"}}]},
         })
-        for _key, label, html in wechat_themes:
-            wechat_blocks.append({
-                "object": "block", "type": "heading_3",
-                "heading_3": {"rich_text": [{"type": "text", "text": {"content": label}}]},
+        if gist_url:
+            # One callout block with the Gist link — safe for Notion (no HTML content)
+            theme_names = " / ".join(label for _, label, _ in wechat_themes)
+            gist_blocks.append({
+                "object": "block", "type": "callout",
+                "callout": {
+                    "rich_text": [
+                        {"type": "text", "text": {"content": f"4 套主题（{theme_names}）已存入 GitHub Gist\n"}},
+                        {"type": "text", "text": {
+                            "content": gist_url,
+                            "link": {"url": gist_url},
+                        }},
+                    ],
+                    "icon": {"type": "emoji", "emoji": "🎨"},
+                    "color": "purple_background",
+                },
             })
-            # Notion code blocks max 2000 chars — chunk if needed
-            chunk_size = 1990
-            for i in range(0, len(html), chunk_size):
-                wechat_blocks.append({
-                    "object": "block", "type": "code",
-                    "code": {
-                        "rich_text": [{"type": "text", "text": {"content": html[i:i+chunk_size]}}],
-                        "language": "html",
+            # Individual theme links (raw HTML URLs from Gist)
+            for _, label, _ in wechat_themes:
+                gist_blocks.append({
+                    "object": "block", "type": "bulleted_list_item",
+                    "bulleted_list_item": {
+                        "rich_text": [{"type": "text", "text": {"content": label}}],
                     },
                 })
+        else:
+            # GH_PAT not set or Gist failed — note in Notion, no HTML stored
+            gist_blocks.append({
+                "object": "block", "type": "callout",
+                "callout": {
+                    "rich_text": [{"type": "text", "text": {
+                        "content": "WeChat HTML 未写入（GH_PAT 未设置或 Gist 创建失败）"
+                    }}],
+                    "icon": {"type": "emoji", "emoji": "⚠️"},
+                    "color": "yellow_background",
+                },
+            })
 
-    # Notion allows max 100 blocks per call.
-    # Create the page with article body only (no WeChat HTML) to avoid WAF blocks.
-    first_batch = content_blocks[:100]
-    rest_article = [content_blocks[i:i+100] for i in range(100, len(content_blocks), 100)]
-    wechat_batches = [wechat_blocks[i:i+100] for i in range(0, len(wechat_blocks), 100)]
+    # Notion allows max 100 blocks per call — create page with first batch
+    all_blocks = content_blocks + gist_blocks
+    first_batch = all_blocks[:100]
+    rest = [all_blocks[i:i+100] for i in range(100, len(all_blocks), 100)]
 
     payload = {
         "parent": {"database_id": NOTION_DATABASE_ID},
@@ -218,93 +285,14 @@ def write_to_notion(
     page_id = page["id"]
     page_url = page.get("url", f"https://notion.so/{page_id.replace('-', '')}")
 
-    for batch in rest_article:
+    import time as _time
+    for batch in rest:
+        _time.sleep(0.3)
         r = httpx.patch(
             f"https://api.notion.com/v1/blocks/{page_id}/children",
             headers=_HEADERS, json={"children": batch}, timeout=30,
         )
         r.raise_for_status()
-
-    # Append WeChat HTML blocks in separate batches after page exists.
-    # Non-fatal: if Cloudflare WAF blocks the request, log and continue.
-    import time as _time
-    wechat_ok = True
-    for batch in wechat_batches:
-        _time.sleep(0.5)
-        r = httpx.patch(
-            f"https://api.notion.com/v1/blocks/{page_id}/children",
-            headers=_HEADERS, json={"children": batch}, timeout=60,
-        )
-        if not r.is_success:
-            print(f"[notion] WeChat HTML append blocked ({r.status_code}) — "
-                  f"HTML saved to local file only")
-            wechat_ok = False
-            break
-
-    if wechat_themes and not wechat_ok:
-        # Fallback: base64-encode HTML so Cloudflare WAF won't flag inline styles.
-        # Store as plaintext code blocks — WAF-safe since no HTML tags remain.
-        import base64 as _b64
-        import time as _time
-        b64_blocks: list = []
-        b64_blocks.append({"object": "block", "type": "divider", "divider": {}})
-        b64_blocks.append({
-            "object": "block", "type": "heading_2",
-            "heading_2": {"rich_text": [{"type": "text", "text": {"content": "微信排版 HTML (base64)"}}]},
-        })
-        b64_blocks.append({
-            "object": "block", "type": "callout",
-            "callout": {
-                "rich_text": [{"type": "text", "text": {"content":
-                    "内容以 base64 编码存储。使用前在浏览器控制台运行：atob(\"...\") 解码，或访问 base64decode.org"
-                }}],
-                "icon": {"type": "emoji", "emoji": "ℹ️"},
-                "color": "blue_background",
-            },
-        })
-        for _key, label, html in wechat_themes:
-            encoded = _b64.b64encode(html.encode("utf-8")).decode("ascii")
-            b64_blocks.append({
-                "object": "block", "type": "heading_3",
-                "heading_3": {"rich_text": [{"type": "text", "text": {"content": label}}]},
-            })
-            chunk_size = 1990
-            for i in range(0, len(encoded), chunk_size):
-                b64_blocks.append({
-                    "object": "block", "type": "code",
-                    "code": {
-                        "rich_text": [{"type": "text", "text": {"content": encoded[i:i+chunk_size]}}],
-                        "language": "plain text",
-                    },
-                })
-
-        b64_ok = True
-        for batch in [b64_blocks[i:i+100] for i in range(0, len(b64_blocks), 100)]:
-            _time.sleep(0.3)
-            r2 = httpx.patch(
-                f"https://api.notion.com/v1/blocks/{page_id}/children",
-                headers=_HEADERS, json={"children": batch}, timeout=60,
-            )
-            if not r2.is_success:
-                print(f"[notion] base64 fallback also failed ({r2.status_code})")
-                b64_ok = False
-                break
-
-        if b64_ok:
-            print("[notion] WeChat HTML written as base64 (WAF workaround)")
-        else:
-            # Last resort: save to local file
-            from pathlib import Path as _Path
-            import json as _json
-            out_dir = _Path(__file__).parent / ".wechat_html"
-            out_dir.mkdir(exist_ok=True)
-            out_file = out_dir / f"{today}_{page_id[:8]}.json"
-            out_file.write_text(
-                _json.dumps([{"key": k, "label": l, "html": h}
-                             for k, l, h in wechat_themes], ensure_ascii=False, indent=2),
-                encoding="utf-8",
-            )
-            print(f"[notion] WeChat HTML saved locally → {out_file}")
 
     print(f"[notion] Page created: {page_url}")
     return page_url
