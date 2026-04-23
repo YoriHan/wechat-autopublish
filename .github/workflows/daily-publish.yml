@@ -27,7 +27,7 @@ env:
   WECHAT_COVER_MEDIA_ID:         ${{ secrets.WECHAT_COVER_MEDIA_ID }}
   BARK_KEY:                      ${{ secrets.BARK_KEY }}
   PUSHPLUS_TOKEN:                ${{ secrets.PUSHPLUS_TOKEN }}
-  GITHUB_TOKEN:                  ${{ secrets.GITHUB_TOKEN }}
+  GH_PAT:                        ${{ secrets.GH_PAT }}
   RSSHUB_BASE_URL:               ${{ secrets.RSSHUB_BASE_URL }}
   MANUAL_URL:                    ${{ github.event.inputs.url }}
 
